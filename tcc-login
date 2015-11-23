@@ -1,0 +1,54 @@
+#!/usr/bin/python
+import httplib, os, re, urllib
+
+# Get a google main page. We get the WiFi registration if we're not logged in
+store_path = "/tmp/gindex"
+os.system("wget google.com -O " + store_path + " > /dev/null 2>&1")
+f = open(store_path, "r")
+index_page = f.read()
+f.close()
+# Tear the login form off the page
+match_str = re.search("<form.*name=\"bluesocket_u\".*?>.*?</form>", index_page, re.MULTILINE and re.DOTALL)
+if match_str == None:
+# If there's no such form, then most likely we got a real google page, so we're logged in
+    print "Looks like we're logged in already!"
+    quit()
+match_str = match_str.group(0)
+# Get domain and path to send the form
+send_address = re.search("action=\"https://(.*?)(/.*)\"", match_str)
+host = send_address.group(1)
+path = send_address.group(2)
+# Get all input fields (including hidden ones) from the form
+inputs = re.findall("<input.*name=\"(.+?)\".*value=\"(.*?)\".*?/>", match_str, re.MULTILINE)
+
+# Read the username and password from a file
+cred_path = os.path.expanduser("~/.tcc_credentials")
+f = open(cred_path, "r")
+file_contents = f.read()
+user_name = re.search("username.*=(.*)", file_contents).group(1).strip()
+passwd = re.search("password.*=(.*)", file_contents).group(1).strip()
+
+# Convert inputs list to a list of tuples of the form (input_name, value)
+param_list = []
+for inp in inputs:
+    value = inp[1]
+    if inp[0] == "bs_name":
+        value = user_name
+    if inp[0] == "bs_password":
+        value = passwd
+    new_tuple = (inp[0], value)
+    param_list.append(new_tuple)
+
+# Prepare parameters and headers for the POST request
+params = urllib.urlencode(param_list)
+headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
+# Send POST request with our data
+conn = httplib.HTTPSConnection(host)
+conn.request("POST", path, params, headers)
+# Check response
+response = conn.getresponse()
+if response.status == 200:
+    print "Logged in"
+else:
+    print "Error", response.status, response.reason
+conn.close()
