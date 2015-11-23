@@ -15,7 +15,7 @@ if match_str == None:
     quit()
 match_str = match_str.group(0)
 # Get domain and path to send the form
-send_address = re.search("action=\"https://(.*?)(/.*)\"", match_str)
+send_address = re.search("action=\"https://(.*?)(/.*?)\"", match_str)
 host = send_address.group(1)
 path = send_address.group(2)
 # Get all input fields (including hidden ones) from the form
@@ -50,5 +50,5 @@ response = conn.getresponse()
 if response.status == 200:
     print "Logged in"
 else:
-    print "Error", response.status, response.reason
+    print response.status, response.reason
 conn.close()
